@@ -1,0 +1,29 @@
+clc
+clear
+%Badanie napędu prędkościowego DC
+%silnik obcowzbudny DC LTI.
+%człon LTI - system liniowy niezmienny w czasie
+Pn =22000;
+Un = 440;
+in = 56.2;
+J = 2.7;
+Rt = 0.465;
+Tt = 0.033;
+omega = 0.2;
+Tm= 0.2;
+Cmfi = 2.5;
+A = [-1/Tt (-J/(Tm*Tt*Cmfi)); Rt/(Tm*Cmfi) 0]
+b = [1/(Tm*Rt); 0]
+c = [0 1]
+d = [0]
+e = [0; -1/J; 0]
+%wywolanie funkcji
+sys_dc = ss(A,b,c,d) %state space, przestrzen stanu
+sys_tf = tf(sys_dc) %wyznaczyc mozna pierwiastki mianownika, a co za tym idzie stabilnosc ukladu
+
+sys_zpk = zpk(sys_dc) %zwraca zera(z), bieguny (p) i wzmocnienie układu(g) wg matlaba
+
+przestrzen = ss(sys_zpk) %przejscie z modelu transmitancji do przestrzeni stanu
+sys_fb = feedback(sys_dc,-1)%zamkniecie układu UPSZ
+
+sys_disc = tf((1/Cmfi), [Tt*Tm Tm 1], (Tm*0.01))
