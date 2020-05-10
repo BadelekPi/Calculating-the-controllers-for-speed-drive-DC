@@ -1,0 +1,46 @@
+clc
+clear
+%Badanie napędu prędkościowego DC
+%silnik obcowzbudny DC LTI.
+%człon LTI - system liniowy niezmienny w czasie
+Pn =22000;
+Un = 440;
+in = 56.2;
+J = 2.7;
+Rt = 0.465;
+Tt = 0.033;
+omega = 0.2;
+Tm= 0.2;
+Cmfi = 2.5;
+A = [-1/Tt (-J/(Tm*Tt*Cmfi)); Rt/(Tm*Cmfi) 0]
+b = [1/(Tm*Rt); 0]
+c = [0 1]
+d = [0]
+e = [0; -1/J; 0]
+%wywolanie funkcji
+sys_dc = ss(A,b,c,d) %state space, przestrzen stanu
+sys_tf = tf(sys_dc) %wyznaczyc mozna pierwiastki mianownika, a co za tym idzie stabilnosc ukladu
+
+sys_zpk = zpk(sys_dc) %zwraca zera(z), bieguny (p) i wzmocnienie układu(g) wg matlaba
+
+przestrzen = ss(sys_zpk) %przejscie z modelu transmitancji do przestrzeni stanu
+sys_fb = feedback(sys_dc,-1)%zamkniecie układu UPSZ
+
+sys_disc = tf((1/Cmfi), [Tt*Tm Tm 1], (Tm*0.01))
+
+pole(sys_dc) %wyznaczenie miejsc zerowych równania charakterystycznego
+isstable(sys_dc) %sprawdzenie stabilności za pomocą wskaźnika przyjmującego logiczne 0 bądź 1
+eig(A) %zwraca wartości własne macierzy A
+
+amp = tf(5.5,[1/1000 1]) %podłączenie na wejście silnika modułu PWM
+plant = sys_dc * amp;  %wyznaczanie modelu wyjściowego
+plant.StateName{3} = 'x3' %deklaracja nazwy
+pole(plant)  %wyznaczenie biegunów s modelu wypadkowego
+isstable(plant)  %ocena stabilności układu zamkniętego
+step(plant)  %wyznaczenie odpowiedzi skokowej w celu zbadania właściwości dynamicznych układu
+
+ctrb_matrix = ctrb(plant) %sprawdzenie dla regulatora od stanu warunku sterowalności przed projektowaniem
+rank(ctrb_matrix) %sprawdzenie rzędu macierzy (powinien być taki jak rząd układu)
+plant.c = eye(3); %deklaracja trzeciej zmiennej stanu
+plant.StateName{3} = 'x3'; %deklaracja nazwy zmiennej stanu
+plant.OutputName = {'w','i','x3'} %deklaracja trzech zmiennych stanu w równaniu wyjścia
