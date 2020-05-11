@@ -9,7 +9,7 @@ in = 56.2;
 J = 2.7;
 Rt = 0.465;
 Tt = 0.033;
-omega = 0.2;
+omega = 157,0796327;
 Tm= 0.2;
 Cmfi = 2.5;
 A = [-1/Tt (-J/(Tm*Tt*Cmfi)); Rt/(Tm*Cmfi) 0]
@@ -44,3 +44,11 @@ rank(ctrb_matrix) %sprawdzenie rzędu macierzy (powinien być taki jak rząd uk�
 plant.c = eye(3); %deklaracja trzeciej zmiennej stanu
 plant.StateName{3} = 'x3'; %deklaracja nazwy zmiennej stanu
 plant.OutputName = {'w','i','x3'} %deklaracja trzech zmiennych stanu w równaniu wyjścia
+
+K=place(plant.a),(plant.b),[   ]) %funkcja wyznaczająca macierz K
+%zwraca 3 wsp. wzmocnienia, dla predkosci katowej, pradu i zwiazanej ze
+%wzmacniaczem
+
+cl = feedback(plant, K) %buduje układ ze sprzężeniem zwrotnym 
+pole(cl) %sprawdzenie czy regulator ulokował bieguny we właściwych miejscach na płaszczyźnie S
+step(cl(1)) %wywołanie charakterystyki skokowej
