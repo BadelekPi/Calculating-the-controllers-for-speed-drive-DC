@@ -53,3 +53,7 @@ pole(cl) %sprawdzenie czy regulator ulokowal bieguny we wlasciwych miejscach
 isstable(cl) %sprawdzenie stabilności
 
 step(cl(1)) %wyznaczenie odpowiedzi skokowej modelu zamkniętego
+N=dcgain(cl(2)) %wyznaczenie wzmocnienia
+cl(2)=cl(2)*(1/N); %połączenie szeregowe, pełny układ regulatora
+step(cl(2)) %wyznaczenie odpowiedzi skokowej
+
