@@ -51,3 +51,5 @@ K=place(plant.a,plant.b,[0.5*(-24.0760),0.5*(-6.2270),(-3*1000)]) %funkcja dla w
 cl = feedback(plant,K) %budowanie ukladu ze sprzezeniem zwrotnym 
 pole(cl) %sprawdzenie czy regulator ulokowal bieguny we wlasciwych miejscach
 isstable(cl) %sprawdzenie stabilności
+
+step(cl(1)) %wyznaczenie odpowiedzi skokowej modelu zamkniętego
