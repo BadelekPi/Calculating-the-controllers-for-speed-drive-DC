@@ -46,7 +46,7 @@ plant.c = eye(3); %deklaracja trzeciej zmiennej stanu
 plant.StateName{3} = 'x3'; %deklaracja nazwy zmiennej stanu
 plant.OutputName = {'w','i','x3'} %deklaracja trzech zmiennych stanu w równaniu wyjścia
 
-K=place(plant.a,plant.b,[0.5*(-24.0760),0.5*(-6.2270),(-3*1000)]) %funkcja dla wyznaczenia macierzy K
+K=place(plant.a,plant.b,[0.68*(-24.0760),0.68*(-6.2270),(-3*1000)]) %funkcja dla wyznaczenia macierzy K
 %(wymagane wartosci biegunow)
 cl = feedback(plant,K) %budowanie ukladu ze sprzezeniem zwrotnym 
 pole(cl) %sprawdzenie czy regulator ulokowal bieguny we wlasciwych miejscach
