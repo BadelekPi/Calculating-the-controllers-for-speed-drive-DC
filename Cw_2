@@ -25,7 +25,7 @@ sys_tf = tf(sys_dc) %wyznaczyc mozna pierwiastki mianownika, a co za tym idzie s
 sys_zpk = zpk(sys_dc) %zwraca zera(z), bieguny (p) i wzmocnienie układu(g) wg matlaba
 
 przestrzen = ss(sys_zpk) %przejscie z modelu transmitancji do przestrzeni stanu
-sys_fb = feedback(sys_dc,-1)%zamkniecie układu UPSZ
+sys_fb = feedback(sys_dc,1)%zamkniecie układu UPSZ
 
 sys_disc = tf((1/Cmfi), [Tt*Tm Tm 1], (Tm*0.01))
 
