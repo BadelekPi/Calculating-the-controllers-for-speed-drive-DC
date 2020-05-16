@@ -25,6 +25,6 @@ sys_tf = tf(sys_dc) %przejście z modelu stanowego do transmitancji silnika
 sys_zpk = zpk(sys_dc) %zwraca zera(zeros), bieguny(poles) i wzmocnienie układu(gains)
 
 przestrzen = ss(sys_zpk) %przejscie z modelu zpk do przestrzeni stanu
-sys_fb = feedback(sys_dc,-1)%zamkniecie układu USZ
+sys_fb = feedback(sys_dc,1)%zamkniecie układu USZ
 
 sys_disc = tf((1/Cmfi), [Tt*Tm Tm 1], (Tm*0.01))%postać dyskretna transmitancji silnika
