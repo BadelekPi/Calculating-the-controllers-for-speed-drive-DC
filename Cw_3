@@ -66,6 +66,7 @@ K1=lqr(M_W.a,M_W.b,Q,R)           %rozwiązanie równania Riccatiego
                                   %budowanie układu z regulatorem
 M_W = ss((M_W.a-M_W.b*K1),M_W.b,M_W.c,M_W.d)
 isstable(M_W)                     %sprawdzenie stabilności
-Kff=1/(dcgain(M_W(1)))            %wyznaczenie wzmocnienia
-M_W=M_W*Kff                       %pełny układ regulatora
+PK=1/(dcgain(M_W(1)))             %wyznaczenie wzmocnienia
+M_W=M_W*PK                        %pełny układ regulatora
+isstable(M_W)
 step(M_W)                         %wyznaczenie odpowiedzi skokowej
