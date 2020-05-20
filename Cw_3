@@ -25,7 +25,7 @@ sys_zpk = zpk(sys_dc) %zwraca zera(zeros), bieguny (poles) i wzmocnienie (gains)
 
 przestrzen = ss(sys_zpk)                         %przejscie z modelu transmitancji do przestrzeni stanu
 sys_fb = feedback(sys_dc,1)                      %zamkniecie układu UPSZ
-sys_disc = tf((1/Cmfi), [Tt*Tm Tm 1], (Tm*0.01)) %postac dyskretna transmitancji silnika
+sys_disc = tf((1/Cmfi), [Tt*Tm Tm 1], (Tm*0.01)) %postac dyskretna transmitancji silnika prędkości kątowej od napięcia
 
 pole(sys_dc)     %wyznaczenie miejsc zerowych równania charakterystycznego
 isstable(sys_dc) %sprawdzenie stabilności za pomocą wskaźnika przyjmującego logiczne 0 bądź 1
