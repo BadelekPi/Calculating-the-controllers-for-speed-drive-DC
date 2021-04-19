@@ -1,0 +1,172 @@
+clear;
+close all;
+clear all;
+
+s=tf('s');                                                                 % Korzystamy z funckji tf (Transfer function model), czyli tworzymy przestrzeń s
+                                                                           
+disp('-------------Obiekt nominalny------------------');
+G=1/s^2 ;                                                                  % Stworzenie transmitancji członu całkującego 2 rzędu 
+[A, B, C, D]=ssdata(G);                                                    % Utworzenie macierzy modelu stanu na podstawie transmitancji G                                                 
+Gss=ss(G);                                                                 % Stworzenie modelu w przestrzeni stanu z transmitancji G
+n=size(A,1);                                                               % Przypisanie do zmiennej n, ilosci wierszy w macierzy A
+Q=eye(n);                                                                  % Stworzenie macierzy jednostkowej, o rozmiarze równej wartości zmiennej n 
+
+i = 1;                                                                     % Zmienna pomocnicza do pozycjonowania wykresów
+
+R=0.1;                                                                     % Macierz wag, kara na sygnał sterowania
+K=lqr(A, B, Q, R);                                                         % Rozwiazanie równania Ricattiego
+Acl=A-B*K;                                                                 % Obliczenie macierzy dla całego zamkniętego obiektu regulacji, z uwzglednieniem sterowania regulatorem statycznym LQR
+Gclz_q=ss(Acl,B,C,0);                                                      % Utworzenie modelu w przestrzeni stanu sterowania z regulatorem statycznym bez obserwatora
+F_q=1/dcgain(Gclz_q);                                                      % Obliczenie wzmocnienia prekompensatora 
+Gclu_q=ss(Acl,B,-K,0);                                                     % Utworzenie modelu w przestrzeni stanu układu regulacji z regulatorem statycznym                                             
+P=eig(Acl);                                                                % Wyodrębnienie wartosci własnych macierzy Acl
+L=place(A' ,C',3*P);                                                       % Przypisanie do zmiennej L wzmocnienia estymatora
+Css=reg(Gss,K,L');                                                         % Stworzenie modelu regulatora LQR, o wzmocnieniu K, oraz estymatora o wzmocnieniu L                                                   
+Gclz_o=feedback(Gss,Css,1);                                                % Stworzenie zamkniętego układu regulacji, z modelem LQR w pętli ujemnego sprzężenia zwrotnego
+F_o=1/dcgain(Gclz_o);                                                      % Obliczenie wzmocnienia prekompensatora dla układu regulacji z estymatorem
+Gclu_o=feedback(Gss*Css,1,1);                                              % Stworzenie modelu zamkniętego układu regulacji z regulatorem LQR i estymatorem
+tfinal=15;                                                                 % Maksymalny czas cyklu
+
+y = stepinfo(F_o*Gclz_o);                                                  % Zapisanie w zmiennej wartości potrzebnej do obliczenia czasu próbkowania
+Ts = y.RiseTime/12;                                                        % Obliczenie czasu próbkowania
+Gss_d=c2d(Gss,Ts);                                                         % Zamiana modelu ciągłego na model dyskretny z czestotliwoscia probkowania Ts
+gs = tf(Gss_d);                                                            % Tworzymy model transmitancyjny korzystając z modelu dyskretnego
+[A_d,B_d,C_d,D_d, Ts] = ssdata(Gss_d);                                     % Utworzenie macierzy modelu stanu na podstawie transmitancji G  
+K_d = dlqr(A_d, B_d, Q, R);                                                % Stworzenie modelu regulatora LQR z uwzglednieniem macierzy wag Q i R 
+Acl_d = A_d-B_d*K_d;                                                       % Stworzenie modelu zamkniętego układu regulacji, z regulatorem LQR w dziedzinie dyskretnej
+Gclz_qd = ss(Acl_d, B_d, C_d, 0, Ts);                                      % Utworzenie modelu w przestrzeni stanu dla sterowania z regulatorem statycznym (Bez obserwatora)
+F_qd = 1/dcgain(Gclz_qd);                                                  % Wyznaczenie członu kompensacyjnego, potrzebnego do wzmocnienia sygnału w stanie ustalonym (Bez obserwatora)
+Gclu_qd = ss(Acl_d, B_d, -K_d, 0, Ts);                                     % Stworzenie modelu zamknietego ukladu regulacji, z regulatorem LQR
+P_d= eig(Acl_d);                                                           % Wyodrębnienie wartości własnych macierzy Acl_d
+L_d = place(A_d', C_d',P_d);                                               % Przypisanie do zmiennej wzmocnienia estymatora
+Css_d=reg(Gss_d,K_d,L_d');                                                 % Stworzenie dyskretnego modelu regulatora LQR
+Gclz_od = feedback(Gss_d,Css_d,1);                                         % Zamkniecie modelu układu regulacji petla ujemnego sprzężenia zwrotnego
+F_od = 1/dcgain(Gclz_od);                                                  % Obliczenie wartości wzmocnienia prekompensatora dla dyskretnego układu regulacji z estymatorem
+Gclu_od = feedback(Gss_d*Css_d,1,1);                                       % Stworzenie modelu zamkniętego, gdzie szeregowo połączony jest dyskretny obiekt regulacji i dyskretny regulator LQR 
+figure(1)                                                                  % Funkcja wywołująca okno do rysowania wykresow
+subplot(2,3,i)                                                             % Wywołanie funkcji rysującej wykres na odpowiednim miejscu. Zmienna 'i' określa poziome położenie konkretnego wykresu
+step(F_q*Gclz_q, 'g', F_o*Gclz_o, 'r', F_qd*Gclz_qd, 'b',...               % Wyrysowanie odpowiedzi skokowych utworzonych wcześniej modeli
+F_od*Gclz_od, 'y', tfinal)      
+title(['Odp. skokowa ukladu zamknietego R=', num2str(R)])                  % Nadanie tytułu wykresowi
+grid;                                                                      % Włączenie siatki	
+xlim([0 15]);                                                              % Definiowanie wartości granicznych na wykresie
+ylim([0 1.1]);
+legend('ciagly, bez estymatora', 'ciagly, z estymatorem',...
+    'dyskretny, bez estymatora', 'dyskretny, z estymatorem');              % Dodanie legendy
+
+
+subplot(2,3,i+3)                                                           % Wywołanie funkcji rysującej wykres na odpowiednim miejscu
+step(F_q*Gclu_q, 'g', F_o*Gclu_o, 'r', F_qd*Gclu_qd, 'b',...               % Wyrysowanie odpowiedzi skokowych utworzonych wcześniej modeli
+F_od*Gclu_od, 'y', tfinal) 
+title(['Sygnal ster. dla R=', num2str(R)])                                 % Nadanie tytułu wykresowi                                     
+grid;                                                                      % Włączenie siatki
+legend('ciagly, bez estymatora', 'ciagly, z estymatorem',...
+'dyskretny, bez estymatora', 'dyskretny, z estymatorem');
+
+
+R=1;                                                                       % Macierz wag (kara jaka obciazany jest sygnal sterowania)
+K=lqr(A, B, Q, R);                                                         % Rozwiazanie równania Ricattiego
+Acl=A-B*K;                                                                 % Obliczenie macierzy dla całego zamkniętego obiektu regulacji, z uwzglednieniem sterowania regulatorem statycznym LQR
+Gclz_q=ss(Acl,B,C,0);                                                      % Utworzenie modelu w przestrzeni stanu sterowania z regulatorem statycznym bez obserwatora
+F_q=1/dcgain(Gclz_q);                                                      % Obliczenie wzmocnienia prekompensatora 
+Gclu_q=ss(Acl,B,-K,0);                                                     % Utworzenie modelu w przestrzeni stanu układu regulacji z regulatorem statycznym                                             
+P=eig(Acl);                                                                % Wyodrębnienie wartosci własnych macierzy Acl
+L=place(A' ,C',3*P);                                                       % Przypisanie do zmiennej L wzmocnienia estymatora
+Css=reg(Gss,K,L');                                                         % Stworzenie modelu regulatora LQR, o wzmocnieniu K, oraz estymatora o wzmocnieniu L                                                   
+Gclz_o=feedback(Gss,Css,1);                                                % Stworzenie zamkniętego układu regulacji, z modelem LQR w pętli ujemnego sprzężenia zwrotnego
+F_o=1/dcgain(Gclz_o);                                                      % Obliczenie wzmocnienia prekompensatora dla układu regulacji z estymatorem
+Gclu_o=feedback(Gss*Css,1,1);                                              % Stworzenie modelu zamkniętego układu regulacji z regulatorem LQR i estymatorem
+tfinal=15;                                                                 % Maksymalny czas cyklu
+                                                                           % Wyznacznie modelu dyskretnego
+                                                                           % Czas probkowania dobrany na podstawie czasu narastania dla ukladu zamknietego z obserwatorem                                                                                                                                                      
+y = stepinfo(F_o*Gclz_o);                                                  % Zapisanie w zmiennej wartości potrzebnej do obliczenia czasu próbkowania
+Ts = y.RiseTime/12;                                                        % Obliczenie czasu próbkowania
+Gss_d=c2d(Gss,Ts);                                                         % Zamiana modelu ciągłego na model dyskretny z czestotliwoscia probkowania Ts
+gs = tf(Gss_d);                                                            % Tworzymy model transmitancyjny korzystając z modelu dyskretnego
+[A_d,B_d,C_d,D_d, Ts] = ssdata(Gss_d);                                     % Utworzenie macierzy modelu stanu na podstawie transmitancji G  
+K_d = dlqr(A_d, B_d, Q, R);                                                % Stworzenie modelu regulatora LQR z uwzglednieniem macierzy wag Q i R 
+Acl_d = A_d-B_d*K_d;                                                       % Stworzenie modelu zamkniętego układu regulacji, z regulatorem LQR w dziedzinie dyskretnej
+Gclz_qd = ss(Acl_d, B_d, C_d, 0, Ts);                                      % Utworzenie modelu w przestrzeni stanu dla sterowania z regulatorem statycznym (Bez obserwatora)
+F_qd = 1/dcgain(Gclz_qd);                                                  % Wyznaczenie członu kompensacyjnego, potrzebnego do wzmocnienia sygnału w stanie ustalonym (Bez obserwatora)
+Gclu_qd = ss(Acl_d, B_d, -K_d, 0, Ts);                                     % Stworzenie modelu zamknietego ukladu regulacji, z regulatorem LQR
+P_d= eig(Acl_d);                                                           % Wyodrębnienie wartości własnych macierzy Acl_d
+L_d = place(A_d', C_d',P_d);                                               % Przypisanie do zmiennej wzmocnienia estymatora
+Css_d=reg(Gss_d,K_d,L_d');                                                 % Stworzenie dyskretnego modelu regulatora LQR
+Gclz_od = feedback(Gss_d,Css_d,1);                                         % Zamkniecie modelu układu regulacji petla ujemnego sprzężenia zwrotnego
+F_od = 1/dcgain(Gclz_od);                                                  % Obliczenie wartości wzmocnienia prekompensatora dla dyskretnego układu regulacji z estymatorem
+Gclu_od = feedback(Gss_d*Css_d,1,1);                                       % Stworzenie modelu zamkniętego, gdzie szeregowo połączony jest dyskretny obiekt regulacji i dyskretny regulator LQR 
+i = i+1;
+figure(1)                                                                  % Funkcja wywołująca okno do rysowania wykresow
+subplot(2,3,i)                                                             % Wywołanie funkcji rysującej wykres na odpowiednim miejscu. Zmienna 'i' określa poziome położenie konkretnego wykresu
+step(F_q*Gclz_q, 'g', F_o*Gclz_o, 'r', F_qd*Gclz_qd, 'b',...               % Wyrysowanie odpowiedzi skokowych utworzonych wcześniej modeli
+F_od*Gclz_od, 'y', tfinal)      
+title(['Odp. skokowa ukladu zamknietego R=', num2str(R)])                  % Nadanie tytułu wykresowi
+grid;                                                                      % Włączenie siatki	
+xlim([0 15]);                                                              % Definiowanie wartości granicznych na wykresie
+ylim([0 1.1]);
+legend('ciagly, bez estymatora', 'ciagly, z estymatorem',...
+    'dyskretny, bez estymatora', 'dyskretny, z estymatorem');              % Dodanie legendy
+
+
+subplot(2,3,i+3)                                                           % Wywołanie funkcji rysującej wykres na odpowiednim miejscu
+step(F_q*Gclu_q, 'g', F_o*Gclu_o, 'r', F_qd*Gclu_qd, 'b',...               % Wyrysowanie odpowiedzi skokowych utworzonych wcześniej modeli
+F_od*Gclu_od, 'y', tfinal) 
+title(['Sygnal ster. dla R=', num2str(R)])                                 % Nadanie tytułu wykresowi                                     
+grid;                                                                      % Włączenie siatki
+legend('ciagly, bez estymatora', 'ciagly, z estymatorem',...
+'dyskretny, bez estymatora', 'dyskretny, z estymatorem');
+
+
+R=10;                                                                      % Macierz wag (kara jaka obciazany jest sygnal sterowania)
+K=lqr(A, B, Q, R);                                                         % Rozwiazanie równania Ricattiego
+Acl=A-B*K;                                                                 % Obliczenie macierzy dla całego zamkniętego obiektu regulacji, z uwzglednieniem sterowania regulatorem statycznym LQR
+Gclz_q=ss(Acl,B,C,0);                                                      % Utworzenie modelu w przestrzeni stanu sterowania z regulatorem statycznym bez obserwatora
+F_q=1/dcgain(Gclz_q);                                                      % Obliczenie wzmocnienia prekompensatora 
+Gclu_q=ss(Acl,B,-K,0);                                                     % Utworzenie modelu w przestrzeni stanu układu regulacji z regulatorem statycznym                                             
+P=eig(Acl);                                                                % Wyodrębnienie wartosci własnych macierzy Acl
+L=place(A' ,C',3*P);                                                       % Przypisanie do zmiennej L wzmocnienia estymatora
+Css=reg(Gss,K,L');                                                         % Stworzenie modelu regulatora LQR, o wzmocnieniu K, oraz estymatora o wzmocnieniu L                                                   
+Gclz_o=feedback(Gss,Css,1);                                                % Stworzenie zamkniętego układu regulacji, z modelem LQR w pętli ujemnego sprzężenia zwrotnego
+F_o=1/dcgain(Gclz_o);                                                      % Obliczenie wzmocnienia prekompensatora dla układu regulacji z estymatorem
+Gclu_o=feedback(Gss*Css,1,1);                                              % Stworzenie modelu zamkniętego układu regulacji z regulatorem LQR i estymatorem
+tfinal=15;                                                                 % Maksymalny czas cyklu
+
+
+                                                                           % Wyznacznie modelu dyskretnego                                                                                                                                                                                                                              
+y = stepinfo(F_o*Gclz_o);                                                  % Zapisanie w zmiennej wartości potrzebnej do obliczenia czasu próbkowania
+Ts = y.RiseTime/12;                                                        % Obliczenie czasu próbkowania
+Gss_d=c2d(Gss,Ts);                                                         % Zamiana modelu ciągłego na model dyskretny z czestotliwoscia probkowania Ts
+gs = tf(Gss_d);                                                            % Tworzymy model transmitancyjny korzystając z modelu dyskretnego
+[A_d,B_d,C_d,D_d, Ts] = ssdata(Gss_d);                                     % Utworzenie macierzy modelu stanu na podstawie transmitancji G  
+K_d = dlqr(A_d, B_d, Q, R);                                                % Stworzenie modelu regulatora LQR z uwzglednieniem macierzy wag Q i R 
+Acl_d = A_d-B_d*K_d;                                                       % Stworzenie modelu zamkniętego układu regulacji, z regulatorem LQR w dziedzinie dyskretnej
+Gclz_qd = ss(Acl_d, B_d, C_d, 0, Ts);                                      % Utworzenie modelu w przestrzeni stanu dla sterowania z regulatorem statycznym (Bez obserwatora)
+F_qd = 1/dcgain(Gclz_qd);                                                  % Wyznaczenie członu kompensacyjnego, potrzebnego do wzmocnienia sygnału w stanie ustalonym (Bez obserwatora)
+Gclu_qd = ss(Acl_d, B_d, -K_d, 0, Ts);                                     % Stworzenie modelu zamknietego ukladu regulacji, z regulatorem LQR
+P_d= eig(Acl_d);                                                           % Wyodrębnienie wartości własnych macierzy Acl_d
+L_d = place(A_d', C_d',P_d);                                               % Przypisanie do zmiennej wzmocnienia estymatora
+Css_d=reg(Gss_d,K_d,L_d');                                                 % Stworzenie dyskretnego modelu regulatora LQR
+Gclz_od = feedback(Gss_d,Css_d,1);                                         % Zamkniecie modelu układu regulacji petla ujemnego sprzężenia zwrotnego
+F_od = 1/dcgain(Gclz_od);                                                  % Obliczenie wartości wzmocnienia prekompensatora dla dyskretnego układu regulacji z estymatorem
+Gclu_od = feedback(Gss_d*Css_d,1,1);                                       % Stworzenie modelu zamkniętego, gdzie szeregowo połączony jest dyskretny obiekt regulacji i dyskretny regulator LQR 
+i = i+1;
+figure(1)                                                                  % Funkcja wywołująca okno do rysowania wykresow
+subplot(2,3,i)                                                             % Wywołanie funkcji rysującej wykres na odpowiednim miejscu. Zmienna 'i' określa poziome położenie konkretnego wykresu
+step(F_q*Gclz_q, 'g', F_o*Gclz_o, 'r', F_qd*Gclz_qd, 'b',...               % Wyrysowanie odpowiedzi skokowych utworzonych wcześniej modeli
+F_od*Gclz_od, 'y', tfinal)      
+title(['Odp. skokowa ukladu zamknietego R=', num2str(R)])                  % Nadanie tytułu wykresowi
+grid;                                                                      % Włączenie siatki	
+xlim([0 15]);                                                              % Definiowanie wartości granicznych na wykresie
+ylim([0 1.1]);
+legend('ciagly, bez estymatora', 'ciagly, z estymatorem',...
+    'dyskretny, bez estymatora', 'dyskretny, z estymatorem');              % Dodanie legendy
+
+
+subplot(2,3,i+3)                                                           % Wywołanie funkcji rysującej wykres na odpowiednim miejscu
+step(F_q*Gclu_q, 'g', F_o*Gclu_o, 'r', F_qd*Gclu_qd, 'b',...               % Wyrysowanie odpowiedzi skokowych utworzonych wcześniej modeli
+F_od*Gclu_od, 'y', tfinal) 
+title(['Sygnal ster. dla R=', num2str(R)])                                 % Nadanie tytułu wykresowi                                     
+grid;                                                                      % Włączenie siatki
+legend('ciagly, bez estymatora', 'ciagly, z estymatorem',...
+'dyskretny, bez estymatora', 'dyskretny, z estymatorem');
+%{
